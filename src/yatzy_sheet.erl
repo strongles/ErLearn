@@ -4,9 +4,9 @@
 %%% @doc
 %%%
 %%% @end
-%%% Created : 23. Aug 2018 12:35
+%%% Created : 28. Aug 2018 09:11
 %%%-------------------------------------------------------------------
--module(yatzy).
+-module(yatzy_sheet).
 -author("rob.williams").
 
 %% API
