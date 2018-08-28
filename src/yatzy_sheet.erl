@@ -11,3 +11,11 @@
 
 %% API
 -export([]).
+
+-record(t, {}).
+
+new() ->
+  #t{}.
+
+fill() ->
+  ok.

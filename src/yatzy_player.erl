@@ -6,7 +6,7 @@
 %%% @end
 %%% Created : 24. Aug 2018 16:32
 %%%-------------------------------------------------------------------
--module(player).
+-module(yatzy_player).
 -author("rob.williams").
 
 %% API
