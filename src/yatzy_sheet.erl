@@ -31,8 +31,10 @@ fill(Key, DiceList, Sheet) ->
       already_filled;
     error ->
       case lists:member(Key, ?VALID_SCORING) of
+        false ->
+          invalid_scoring;
         true ->
-        NewSheet = maps:put(Key, yatzy_score:score_dice(Key, DiceList), Sheet),
+          NewSheet = maps:put(Key, yatzy_score:score_dice(Key, DiceList), Sheet),
           case lists:member(Key, ?UPPER) of
             true ->
               UpperTotal = get_score(upper, NewSheet),
@@ -43,9 +45,7 @@ fill(Key, DiceList, Sheet) ->
               {ok, NewSheet2};
             false ->
               {ok, NewSheet}
-          end;
-        false ->
-          invalid_scoring
+          end
       end
   end.
 
