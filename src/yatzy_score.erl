@@ -26,44 +26,6 @@ upper(N, [H | T], Acc) ->
     end,
   upper(N, T, Sum).
 
-%%-spec consecutive_dice(integer(), list()) -> {boolean(), integer()} | boolean.
-%%consecutive_dice(N, DiceList) ->
-%%  SortedDice = lists:reverse(lists:sort(DiceList)),
-%%  consecutive_dice(N, SortedDice, 0, 6).
-%%consecutive_dice(N, [H|_], N, Number) when H =/= Number ->
-%%  {true, Number};
-%%consecutive_dice(N, [], N, Number) ->
-%%  {true, Number};
-%%consecutive_dice(_, [], _, _) ->
-%%  false;
-%%consecutive_dice(N, [H|T], Count, Number) ->
-%%  if
-%%    H =:= Number ->
-%%      consecutive_dice(N, T, Count+1, Number);
-%%    H =/= Number ->
-%%      consecutive_dice(N, T, 1, H)
-%%  end.
-
-%%-spec score_consecutive(integer(), list()) -> integer().
-%%score_consecutive(Occurrences, DiceList) ->
-%%  case consecutive_dice(Occurrences, DiceList) of
-%%    false ->
-%%      0;
-%%    {true, N} ->
-%%      Occurrences * N
-%%  end.
-
-%%-spec remove_all_occurrences(integer(), list()) -> list().
-%%remove_all_occurrences(N, DiceList) ->
-%%  ListLength = length(DiceList),
-%%  TrimmedList = lists:delete(N, DiceList),
-%%  case length(TrimmedList) of
-%%    ListLength ->
-%%      TrimmedList;
-%%    _ ->
-%%      remove_all_occurrences(N, TrimmedList)
-%%  end.
-
 -spec one_pair(list()) -> integer().
 one_pair(DiceList) ->
   case lists:reverse(lists:sort(DiceList)) of
@@ -154,50 +116,3 @@ yatzy([N, N, N, N, N]) ->
   50;
 yatzy(_) ->
   0.
-
-%% First implementation
-%%yatzy(DiceList) ->
-%%  case consecutive_dice(5, DiceList) of
-%%    false ->
-%%      0;
-%%    {true, _} ->
-%%      50
-%%  end.
-%%
-%%full_house(DiceList) ->
-%%  case consecutive_dice(3, DiceList) of
-%%    false ->
-%%      0;
-%%    {true, TripleNumber} ->
-%%      PrunedList = remove_all_occurrences(TripleNumber, DiceList),
-%%      case consecutive_dice(2, PrunedList) of
-%%        false ->
-%%          0;
-%%        {true, DoubleNumber} ->
-%%          3 * TripleNumber + 2 * DoubleNumber
-%%      end
-%%  end.
-%%
-%%two_pair(DiceList) ->
-%%  case consecutive_dice(2, DiceList) of
-%%    false ->
-%%      0;
-%%    {true, N} ->
-%%      PairScore = 2 * N,
-%%      PrunedList = remove_all_occurrences(N, DiceList),
-%%      case consecutive_dice(2, PrunedList) of
-%%        false ->
-%%          0;
-%%        {true, Y} ->
-%%          PairScore + 2 * Y
-%%      end
-%%  end.
-%%
-%%one_pair(DiceList) ->
-%%  score_consecutive(2, DiceList).
-%%
-%%three_of_a_kind(DiceList) ->
-%%  score_consecutive(3, DiceList).
-%%
-%%four_of_a_kind(DiceList) ->
-%%  score_consecutive(4, DiceList).

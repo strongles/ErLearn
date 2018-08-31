@@ -22,16 +22,6 @@ all() -> [test_one_pair_scored_correctly, test_three_of_a_kind_scored_correctly,
   test_small_straight_scored_correctly, test_large_straight_scored_correctly, test_chance_scored_correctly,
   test_upper_scored_correctly].
 
-
-check_expected_scores_match_actual(TestFunction, TestCase) ->
-  ResultList = lists:map(TestFunction, [TestData || {_, TestData} <- TestCase]),
-  case lists:all(fun({X, Y}) -> X =:= Y end, lists:zip(ResultList, [Expected || {Expected, _} <- TestCase])) of
-    true ->
-      ok;
-    false ->
-      erlang:error(badmatch)
-  end.
-
 test_upper_scored_correctly(_Config) ->
   0 = yatzy_score:upper(5, [1, 1, 1, 1, 1]),
   4 = yatzy_score:upper(2, [2, 3, 3, 1, 2]),
