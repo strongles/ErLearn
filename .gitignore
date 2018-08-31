@@ -1,3 +1,4 @@
 .idea/
 *.iml
 *.beam
+tests/test_results/
