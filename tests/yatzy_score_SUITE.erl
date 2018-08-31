@@ -62,6 +62,9 @@ test_two_pair_scored_correctly(_Config) ->
   10 = yatzy_score:two_pair([4, 1, 4, 1, 2]),
   14 = yatzy_score:two_pair([5, 2, 2, 3, 5]),
   22 = yatzy_score:two_pair([5, 6, 2, 6, 5]),
+  0 = yatzy_score:two_pair([1, 2, 3, 4, 6]),
+  0 = yatzy_score:two_pair([1, 1, 1, 4, 6]),
+  0 = yatzy_score:two_pair([1, 2, 2, 2, 2]),
   0 = yatzy_score:two_pair([1, 2, 3, 4, 6]).
 
 test_full_house_scored_correctly(_Config) ->
@@ -71,7 +74,8 @@ test_full_house_scored_correctly(_Config) ->
   11 = yatzy_score:full_house([4, 1, 4, 1, 1]),
   16 = yatzy_score:full_house([5, 2, 2, 2, 5]),
   27 = yatzy_score:full_house([5, 6, 5, 6, 5]),
-  0 = yatzy_score:full_house([1, 2, 3, 4, 6]).
+  0 = yatzy_score:full_house([1, 2, 3, 4, 6]),
+  0 = yatzy_score:full_house([6, 6, 6, 6, 6]).
 
 test_small_straight_scored_correctly(_Config) ->
   0 = yatzy_score:small_straight([1, 1, 2, 2, 2]),
