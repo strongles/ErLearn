@@ -29,10 +29,11 @@ loop(Sheet) ->
       loop(NewSheet2);
     {Pid, {re_roll, KeptDice}} ->
       LastRoll = maps:get(dice_hand, Sheet),
-      RollNumber = maps:get(roll_number, Sheet),
+      RollNumber = maps:get(roll_number, Sheet, not_rolled),
       case RollNumber of
-        error ->
-          error;
+        not_rolled ->
+          Pid ! {error, not_rolled},
+          loop(Sheet);
         3 ->
           Pid ! {error, rolls_exceeded},
           loop(Sheet);
@@ -58,7 +59,9 @@ loop(Sheet) ->
       Pid ! {ok, yatzy_sheet:get_score(Hand, ScoredSheet)},
       loop(ScoredSheet);
     {Pid, final_score} ->
-      Pid ! {ok, yatzy_sheet:get_score(total, Sheet)}
+      Pid ! {ok, yatzy_sheet:get_score(total, Sheet)};
+    code_change ->
+      ?MODULE:loop(Sheet)
   end.
 
 new_player(Name) ->
@@ -70,7 +73,7 @@ roll_dice(Name) ->
   Name ! {self(), roll_dice},
   receive
     {ok, DiceList} ->
-      DiceList
+      io:format("~p rolled ~p~n", [Name, DiceList])
   after 4000 ->
     timeout
   end.
@@ -83,7 +86,9 @@ re_roll(Name, KeptDice) ->
     {error, rolls_exceeded} ->
       io:format("Re-rolls all used.~n");
     {error, cheater} ->
-      io:format("~p is a filthy cheater! ~p were not your dice!~n", [Name, KeptDice])
+      io:format("~p is a filthy cheater! ~p were not your dice!~n", [Name, KeptDice]);
+    {error, not_rolled} ->
+      io:format("You need to ROLL before you can RE-roll")
   after 4000 ->
     timeout
   end.
