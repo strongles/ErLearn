@@ -10,10 +10,11 @@
 -author("rob.williams").
 
 %% API
--export([new/0, fill/3, get_score/2]).
+-export([new/0, fill/3, get_score/2, fill_upper/2]).
 
 -define(UPPER, [ones, twos, threes, fours, fives, sixes]).
--define(HANDS, [one_pair, three_of_a_kind, four_of_a_kind, two_pair, small_straight, large_straight, full_house, chance, yatzy]).
+-define(HANDS, [one_pair, three_of_a_kind, four_of_a_kind, two_pair,
+  small_straight, large_straight, full_house, chance, yatzy]).
 -define(VALID_SCORING, ?UPPER ++ [bonus] ++ ?HANDS).
 
 -export_type([t/0]).
@@ -24,45 +25,55 @@
 new() ->
   #{}.
 
+-spec calculate_bonus(t()) -> integer().
+calculate_bonus(Sheet) ->
+  case get_score(upper, Sheet) >= 63 of
+    true ->
+      50;
+    false ->
+      0
+  end.
+
 -spec fill(atom(), list(), t()) -> {ok, t()} | already_filled | invalid_scoring.
 fill(Key, DiceList, Sheet) ->
-  case maps:find(Key, Sheet) of
-    {ok, _} ->
-      already_filled;
-    error ->
-      case lists:member(Key, ?VALID_SCORING) of
-        false ->
-          invalid_scoring;
-        true ->
+  case lists:member(Key, ?VALID_SCORING) of
+    false ->
+      invalid_scoring;
+    true ->
+      case maps:get(Key, Sheet, empty) of
+        empty ->
           NewSheet = maps:put(Key, yatzy_score:score_dice(Key, DiceList), Sheet),
           case lists:member(Key, ?UPPER) of
             true ->
-              UpperTotal = get_score(upper, NewSheet),
-              Bonus = if UpperTotal >= 63 -> 50;
-                        UpperTotal < 63 -> 0
-                      end,
+              Bonus = calculate_bonus(NewSheet),
               NewSheet2 = maps:put(bonus, Bonus, NewSheet),
               {ok, NewSheet2};
             false ->
               {ok, NewSheet}
-          end
+          end;
+        _ ->
+          already_filled
       end
   end.
 
+-spec fill_upper(list(), t()) -> {ok, t()}.
+fill_upper(DiceList, Sheet) ->
+  fill_upper(DiceList, Sheet, ?UPPER).
+fill_upper(_, Sheet, []) ->
+  {ok, Sheet};
+fill_upper(DiceList, Sheet, [H|T]) ->
+  {_, NewSheet} = fill(H, DiceList, Sheet),
+  fill_upper(DiceList, NewSheet, T).
+
 -spec get_score(atom(), t()) -> {ok, integer()} | score_not_filled | error.
 get_score(upper, Sheet) ->
-  lists:sum(lists:map(fun(Key) -> try maps:get(Key, Sheet) catch _:_ -> 0 end end, ?UPPER));
+  lists:sum(lists:map(fun(Key) -> maps:get(Key, Sheet, 0) end, ?UPPER));
 get_score(total, Sheet) ->
-  lists:sum(lists:map(fun(Key) -> try maps:get(Key, Sheet) catch _:_ -> 0 end end, ?VALID_SCORING));
+  lists:sum(lists:map(fun(Key) -> maps:get(Key, Sheet, 0) end, ?VALID_SCORING));
 get_score(Category, Sheet) ->
   case lists:member(Category, ?VALID_SCORING) of
     true ->
-      case maps:get(Category, Sheet) of
-        {ok, Value} ->
-          {ok, Value};
-        error ->
-          score_not_filled
-      end;
+      maps:get(Category, Sheet, score_not_filled);
     false ->
       error
   end.
