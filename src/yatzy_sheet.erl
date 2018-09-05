@@ -10,7 +10,7 @@
 -author("rob.williams").
 
 %% API
--export([new/0, fill/3, get_score/2, fill_upper/2]).
+-export([new/0, fill/3, get_score/2]).
 
 -define(UPPER, [ones, twos, threes, fours, fives, sixes]).
 -define(HANDS, [one_pair, three_of_a_kind, four_of_a_kind, two_pair,
@@ -55,15 +55,6 @@ fill(Key, DiceList, Sheet) ->
           already_filled
       end
   end.
-
--spec fill_upper(list(), t()) -> {ok, t()}.
-fill_upper(DiceList, Sheet) ->
-  fill_upper(DiceList, Sheet, ?UPPER).
-fill_upper(_, Sheet, []) ->
-  {ok, Sheet};
-fill_upper(DiceList, Sheet, [H|T]) ->
-  {_, NewSheet} = fill(H, DiceList, Sheet),
-  fill_upper(DiceList, NewSheet, T).
 
 -spec get_score(atom(), t()) -> {ok, integer()} | score_not_filled | error.
 get_score(upper, Sheet) ->

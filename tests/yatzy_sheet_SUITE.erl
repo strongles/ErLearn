@@ -12,7 +12,7 @@
 
 %% API
 -export([all/0]).
--export([test_fill/1, test_get_score/1, test_fill_upper/1]).
+-export([test_fill/1, test_get_score/1]).
 
 all() -> [test_fill, test_get_score, test_fill_upper].
 
@@ -35,6 +35,3 @@ test_get_score(_Config) ->
   73 = yatzy_sheet:get_score(total, #{fours => 8, bonus => 50, small_straight => 15}),
   score_not_filled = yatzy_sheet:get_score(ones, #{twos => 4}),
   error = yatzy_sheet:get_score(foo, #{full_house => 30}).
-
-test_fill_upper(_Config) ->
-  {ok, #{bonus := 0,fives := 0,fours := 0,ones := 3,sixes := 0,threes := 3,twos := 2}} = yatzy_sheet:fill_upper([1, 2, 3, 1, 1], #{}).

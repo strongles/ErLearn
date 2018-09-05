@@ -10,103 +10,110 @@
 -author("rob.williams").
 
 %% API
--export([loop/1, new_player/1, roll_dice/1, re_roll/2, record_score/2, final_score/1]).
-
-generate_dice(Num) ->
-  generate_dice(Num, []).
-generate_dice(0, Acc) ->
-  Acc;
-generate_dice(Count, Acc) ->
-  generate_dice(Count - 1, [rand:uniform(6) | Acc]).
+-export([loop/1, new_player/1, record_score/3, final_score/1, print_score/1]). %% roll_dice/1, re_roll/2,
 
 loop(Sheet) ->
   receive
-    {Pid, roll_dice} ->
-      DiceList = generate_dice(5),
-      NewSheet = maps:put(dice_hand, DiceList, Sheet),
-      NewSheet2 = maps:put(roll_number, 1, NewSheet),
-      Pid ! {ok, DiceList},
-      loop(NewSheet2);
-    {Pid, {re_roll, KeptDice}} ->
-      LastRoll = maps:get(dice_hand, Sheet),
-      RollNumber = maps:get(roll_number, Sheet, not_rolled),
-      case RollNumber of
-        not_rolled ->
-          Pid ! {error, not_rolled},
-          loop(Sheet);
-        3 ->
-          Pid ! {error, rolls_exceeded},
-          loop(Sheet);
-        _ ->
-          case KeptDice -- LastRoll =:= [] of
-            true ->
-              NewDice = generate_dice(5 - length(KeptDice)) ++ KeptDice,
-              NewSheet = maps:put(dice_hand, NewDice, Sheet),
-              NewSheet2 = maps:put(roll_number, RollNumber + 1, NewSheet),
-              Pid ! {ok, {NewDice, 3 - maps:get(roll_number, NewSheet2)}},
-              loop(NewSheet2);
-            false ->
-              Pid ! {error, cheater},
-              loop(Sheet)
-          end
+%%    {From, roll_dice} ->
+%%      DiceList = generate_dice(5),
+%%      NewState = maps:put(dice_hand, DiceList, GameState),
+%%      NewState2 = maps:put(roll_number, 1, NewState),
+%%      NewState3 = maps:put(score_recorded, false, NewState2),
+%%      From ! {ok, DiceList},
+%%      loop(Sheet, NewState3);
+%%    {From, {re_roll, KeptDice}} ->
+%%      LastRoll = maps:get(dice_hand, GameState),
+%%      RollNumber = maps:get(roll_number, GameState, not_rolled),
+%%      case RollNumber of
+%%        not_rolled ->
+%%          From ! {error, not_rolled},
+%%          loop(Sheet, GameState);
+%%        3 ->
+%%          From ! {error, rolls_exceeded},
+%%          loop(Sheet, GameState);
+%%        _ ->
+%%          case KeptDice -- LastRoll =:= [] of
+%%            true ->
+%%              NewDice = generate_dice(5 - length(KeptDice)) ++ KeptDice,
+%%              NewState = maps:put(dice_hand, NewDice, GameState),
+%%              NewState2 = maps:put(roll_number, RollNumber + 1, NewState),
+%%              From ! {ok, {NewDice, 3 - maps:get(roll_number, NewState2)}},
+%%              loop(Sheet, NewState2);
+%%            false ->
+%%              From ! {error, cheater},
+%%              loop(Sheet, GameState)
+%%          end
+%%      end;
+    {From, {record_score, Hand, DiceList}} ->
+      case yatzy_sheet:fill(Hand, DiceList, Sheet) of
+        {ok, ScoredSheet} ->
+          From ! {ok, yatzy_sheet:get_score(Hand, ScoredSheet)},
+          loop(ScoredSheet);
+        already_filled ->
+          From ! {error, already_filled},
+          loop(Sheet)
       end;
-    {Pid, {score, upper}} ->
-      {ok, ScoredSheet} = yatzy_sheet:fill_upper(maps:get(dice_hand, Sheet), Sheet), %% Reimplement scoring based on the sheet containing the hand?
-      Pid ! {ok, yatzy_sheet:get_score(upper, ScoredSheet)},
-      loop(ScoredSheet);
-    {Pid, {score, Hand}} ->
-      {ok, ScoredSheet} = yatzy_sheet:fill(Hand, maps:get(dice_hand, Sheet), Sheet),
-      Pid ! {ok, yatzy_sheet:get_score(Hand, ScoredSheet)},
-      loop(ScoredSheet);
-    {Pid, final_score} ->
-      Pid ! {ok, yatzy_sheet:get_score(total, Sheet)};
-    code_change ->
-      ?MODULE:loop(Sheet)
+    {From, print_score} ->
+      print_score_list([[Hand, Score]|| {Hand, Score} <- maps:to_list(Sheet)]),
+      From ! ok,
+      loop(Sheet);
+    {From, code_change} ->
+      From ! ok,
+      ?MODULE:loop(Sheet);
+    {From, final_score} ->
+      From ! {ok, yatzy_sheet:get_score(total, Sheet)}
   end.
 
+print_score_list([]) ->
+  ok;
+print_score_list([H|T]) ->
+  io:format("~p: ~p~n", H),
+  print_score_list(T).
+
+-spec new_player(atom()) -> {ok, pid()}.
 new_player(Name) ->
   Pid = spawn(?MODULE, loop, [yatzy_sheet:new()]),
   register(Name, Pid),
   {ok, Pid}.
 
-roll_dice(Name) ->
-  Name ! {self(), roll_dice},
+call(Pid, Args) ->
+  Pid ! Args,
   receive
-    {ok, DiceList} ->
-      io:format("~p rolled ~p~n", [Name, DiceList])
+    Res ->
+      Res
   after 4000 ->
     timeout
   end.
 
-re_roll(Name, KeptDice) ->
-  Name ! {self(), {re_roll, KeptDice}},
-  receive
-    {ok, {DiceList, RemainingRolls}} ->
-      io:format("~p , rolls remaining: ~p~n", [DiceList, RemainingRolls]);
-    {error, rolls_exceeded} ->
-      io:format("Re-rolls all used.~n");
-    {error, cheater} ->
-      io:format("~p is a filthy cheater! ~p were not your dice!~n", [Name, KeptDice]);
-    {error, not_rolled} ->
-      io:format("You need to ROLL before you can RE-roll")
-  after 4000 ->
-    timeout
-  end.
+%%roll_dice(Name) ->
+%%  {ok, DiceList} = call(Name, {self(), roll_dice}),
+%%  io:format("~p rolled ~p~n", [Name, DiceList]).
 
-record_score(Name, Hand) ->
-  Name ! {self(), {score, Hand}},
-  receive
+%%re_roll(Name, KeptDice) ->
+%%  case call(Name, {self(), {re_roll, KeptDice}}) of
+%%    {ok, {DiceList, RemainingRolls}} ->
+%%      io:format("~p , rolls remaining: ~p~n", [DiceList, RemainingRolls]);
+%%    {error, rolls_exceeded} ->
+%%      io:format("Re-rolls all used.~n");
+%%    {error, cheater} ->
+%%      io:format("~p is a filthy cheater! ~p were not your dice!~n", [Name, KeptDice]);
+%%    {error, not_rolled} ->
+%%      io:format("You need to ROLL before you can RE-roll~n")
+%%  end.
+
+record_score(Name, Hand, DiceList) ->
+  case call(Name, {self(), {record_score, Hand, DiceList}}) of
     {ok, Score} ->
-      io:format("~p added ~p for ~p points~n", [Name, Hand, Score])
-  after 4000 ->
-    timeout
+      io:format("~p added ~p for ~p points~n", [Name, Hand, Score]);
+    {error, multi_score} ->
+      io:format("~p is a filthy cheater! You cannot add more than one score per round!~n", [Name]);
+    {error, already_filled} ->
+      io:format("Score already filled for ~p~n", [Hand])
   end.
 
 final_score(Name) ->
-  Name ! {self(), final_score},
-  receive
-    {ok, Score} ->
-      io:format("~p's final score: ~p~n", [Name, Score])
-  after 4000 ->
-    timeout
-  end.
+  {ok, Score} = call(Name, {self(), final_score}),
+  io:format("~p's final score: ~p~n", [Name, Score]).
+
+print_score(Name) ->
+  ok = call(Name, {self(), print_score}).
