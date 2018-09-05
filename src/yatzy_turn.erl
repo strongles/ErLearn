@@ -11,7 +11,7 @@
 
 %% API
 -export([start/0, first_roll/0, second_roll/1, third_roll/1]).
--export([generic_roll/0, generic_start/0, generic_roll_dice/2, dice_report/1, generic_stop/1]).
+-export([generic_start/0, generic_dice_roll/2, dice_report/1, generic_stop/1]).
 -export_type([game_state/0]).
 
 -define(NUM_DICE, 5).
@@ -141,13 +141,17 @@ generic_call(Pid, Args) ->
 
 -spec generic_start() -> {ok, pid()}.
 generic_start() ->
-  {ok, spawn(?MODULE, generic_roll, [])}.
+  {ok, spawn(fun() -> generic_roll() end)}.
+
+-spec generic_dice(pid()) -> list().
+generic_dice(Pid) ->
+  generic_call(Pid, {self(), dice}).
 
 -spec dice_report(pid()) -> no_return().
 dice_report(Pid) ->
-  io:format("Current dice hand is ~p~n", [generic_call(Pid, {self(), dice})]).
+  io:format("Current dice hand is ~p~n", [generic_dice(Pid)]).
 
-generic_roll_dice(Pid, KeptDice) ->
+generic_dice_roll(Pid, KeptDice) ->
   case generic_call(Pid, {self(), {roll, KeptDice}}) of
     ok ->
       dice_report(Pid);
@@ -159,5 +163,6 @@ generic_roll_dice(Pid, KeptDice) ->
       dice_report(Pid)
   end.
 
+-spec generic_stop(pid()) -> list().
 generic_stop(Pid) ->
   generic_call(Pid, {self(), stop}).

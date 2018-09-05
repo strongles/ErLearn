@@ -10,7 +10,7 @@
 -author("rob.williams").
 
 %% API
--export([loop/1, new_player/1, record_score/3, final_score/1, print_score/1]). %% roll_dice/1, re_roll/2,
+-export([new_player/1, record_score/3, final_score/1, print_score/1]). %% roll_dice/1, re_roll/2,
 
 loop(Sheet) ->
   receive
@@ -72,7 +72,7 @@ print_score_list([H|T]) ->
 
 -spec new_player(atom()) -> {ok, pid()}.
 new_player(Name) ->
-  Pid = spawn(?MODULE, loop, [yatzy_sheet:new()]),
+  Pid = spawn(fun() -> loop(yatzy_sheet:new()) end),
   register(Name, Pid),
   {ok, Pid}.
 
