@@ -39,6 +39,14 @@ generate_dice(Count, Acc) ->
 is_subset(Sub, Full) ->
     Sub -- Full =:= [].
 
+%% If you want to capture the generality of 1st and 2nd move I suggest that you create one
+%% state for them and a final state.
+%% Why that way? It allows you to have the logic for how to deal with the messages being
+%% driven from the state you're in. I.e., in rolling you do accept roll, but in final you
+%% will reject roll.
+
+%% first_roll/0 will actually never be called since in start you spawn first_roll with a
+%% list with one element, ie, you will spawn first_roll/1.
 first_roll() ->
   DiceList = generate_dice(?NUM_DICE),
   GameState = maps:put(last_roll, DiceList, start_state()),
@@ -55,6 +63,12 @@ first_roll(DiceList) ->
           From ! {cheat, dice_mismatch},
           first_roll(DiceList);
         true ->
+              % no need to spawn another process here, just call it:
+              % second_roll(NewDice)
+              % but do calculate the new dice before you call.
+              % Or continue with rolling the dice in the first clause of the second_roll/1
+              % function. I'd go with rolling the dice here and only have the receive
+              % logic in the second_roll/1 clauses.
           spawn(?MODULE, second_roll, [new, KeptDice])
       end;
     {From, score} ->
@@ -131,6 +145,8 @@ generic_roll(DiceList, RollNum) ->
   end.
 
 generic_call(Pid, Args) ->
+    % Add the self() here to make it simpler to call this one:
+    % Pid ! {self(), Args},
   Pid ! Args,
   receive
     Res ->
@@ -139,6 +155,9 @@ generic_call(Pid, Args) ->
     timeout
   end.
 
+
+%% Put the exported functions at the top - then you don't have to look at all the internal
+%% stuff to understand the API.
 -spec generic_start() -> {ok, pid()}.
 generic_start() ->
   {ok, spawn(fun() -> generic_roll() end)}.
@@ -146,6 +165,8 @@ generic_start() ->
 -spec generic_dice(pid()) -> list().
 generic_dice(Pid) ->
   generic_call(Pid, {self(), dice}).
+    % generic_call(Pid, dice).
+
 
 -spec dice_report(pid()) -> no_return().
 dice_report(Pid) ->
