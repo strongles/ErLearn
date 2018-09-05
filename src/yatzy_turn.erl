@@ -28,6 +28,11 @@ generic_dice(Pid) ->
 dice_report(Pid) ->
     io:format("Current dice hand is ~p~n", [generic_dice(Pid)]).
 
+
+%% This way you never fulfill the API that was asked for - the problem is that you have a
+%% bit too much of the user experience in this module.
+%% E.g., roll on in final should return finished not the list of dice.
+%% So I'd only have roll/2, dice/1 and stop/1 as the API to the process.
 roll_dice(Pid, KeptDice) ->
     case call(Pid, {roll, KeptDice}) of
         ok ->
@@ -72,6 +77,11 @@ turn_roll(KeptDice, RollNum) when length(KeptDice) < ?NUM_DICE ->
     DiceList = refill_dice(KeptDice),
     io:format("Dice roll, ~p~n", [DiceList]),
     turn_roll(DiceList, RollNum);
+%% Now that you have these clauses up front to prepare for the clause with the receive you
+%% might as well take advantage of that like this:
+turn_roll(DiceList, ?MAX_ROLLS) ->
+    final_roll(DiceList);
+%% And then the receive in turn_roll and final_roll can be altered like this.
 turn_roll(DiceList, RollNum) ->
     receive
         {From, dice} ->
@@ -83,23 +93,13 @@ turn_roll(DiceList, RollNum) ->
                     From ! {cheat, dice_mismatch},
                     turn_roll(DiceList, RollNum);
                 true ->
-                    case rolls_remaining(RollNum) > 1 of
-                        true ->
-                            From ! ok,
-                            turn_roll(DiceList, RollNum + 1);
-                        false ->
-                            From ! ok,
-                            final_roll(KeptDice)
-                    end
+                    From ! ok,
+                    turn_roll(KeptDice, RollNum + 1)
             end;
         {From, stop} ->
             From ! DiceList
     end.
 
-final_roll(KeptDice) when length(KeptDice) < 5 ->
-    DiceList = refill_dice(KeptDice),
-    io:format("Dice roll, ~p~n", [DiceList]),
-    final_roll(DiceList);
 final_roll(DiceList) ->
     receive
         {From, dice} ->
