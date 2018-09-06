@@ -15,7 +15,7 @@
 -define(UPPER, [ones, twos, threes, fours, fives, sixes]).
 -define(HANDS, [one_pair, three_of_a_kind, four_of_a_kind, two_pair,
     small_straight, large_straight, full_house, chance, yatzy]).
--define(VALID_SCORING, ?UPPER ++ [bonus] ++ ?HANDS).
+-define(VALID_SCORING, ?UPPER ++ ?HANDS).
 
 -export_type([t/0]).
 
@@ -24,15 +24,6 @@
 -spec new() -> t().
 new() ->
     #{}.
-
--spec calculate_bonus(t()) -> integer().
-calculate_bonus(Sheet) ->
-    case get_score(upper, Sheet) >= 63 of
-        true ->
-            50;
-        false ->
-            0
-    end.
 
 -spec fill(atom(), list(), t()) -> {ok, t()} | already_filled | invalid_scoring.
 fill(Key, DiceList, Sheet) ->
@@ -43,14 +34,7 @@ fill(Key, DiceList, Sheet) ->
             case maps:get(Key, Sheet, empty) of
                 empty ->
                     NewSheet = maps:put(Key, yatzy_score:score_dice(Key, DiceList), Sheet),
-                    case lists:member(Key, ?UPPER) of
-                        true ->
-                            Bonus = calculate_bonus(NewSheet),
-                            NewSheet2 = maps:put(bonus, Bonus, NewSheet),
-                            {ok, NewSheet2};
-                        false ->
-                            {ok, NewSheet}
-                    end;
+                    {ok, NewSheet};
                 _ ->
                     already_filled
             end
@@ -58,15 +42,18 @@ fill(Key, DiceList, Sheet) ->
 
 -spec get_score(atom(), t()) -> {ok, integer()} | score_not_filled | error.
 get_score(upper, Sheet) ->
-    lists:sum(lists:map(fun(Key) -> maps:get(Key, Sheet, 0) end, ?UPPER));
+    lists:sum(lists:map(fun(Key) -> get_score(Key, Sheet) end, ?UPPER));
 get_score(total, Sheet) ->
-    lists:sum(lists:map(fun(Key) -> maps:get(Key, Sheet, 0) end, ?VALID_SCORING));
+    lists:sum(lists:map(fun(Key) -> maps:get(Key, Sheet) end, ?VALID_SCORING));
+get_score(bonus, Sheet) ->
+    case get_score(upper, Sheet) >= 63 of
+        true -> 50;
+        false -> 0
+    end;
 get_score(Category, Sheet) ->
     case lists:member(Category, ?VALID_SCORING) of
         true ->
-            maps:get(Category, Sheet, score_not_filled);
+            maps:get(Category, Sheet, 0);
         false ->
             error
     end.
-
-

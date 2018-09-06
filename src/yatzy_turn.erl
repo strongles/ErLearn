@@ -10,7 +10,7 @@
 -author("rob.williams").
 
 %% API
--export([start/0, roll_dice/2, dice_report/1, stop/1]).
+-export([start/0, roll/2, dice/1, stop/1]).
 -export_type([game_state/0]).
 
 -define(NUM_DICE, 5).
@@ -20,31 +20,32 @@
 start() ->
     {ok, spawn(fun() -> turn_roll() end)}.
 
--spec generic_dice(pid()) -> list().
+-spec generic_dice(Pid :: pid()) -> list().
 generic_dice(Pid) ->
     call(Pid, dice).
 
--spec dice_report(pid()) -> no_return().
-dice_report(Pid) ->
+-spec dice(Pid :: pid()) -> no_return().
+dice(Pid) ->
     io:format("Current dice hand is ~p~n", [generic_dice(Pid)]).
 
-roll_dice(Pid, KeptDice) ->
+-spec roll(Pid :: pid(), KeptDice :: list()) -> no_return().
+roll(Pid, KeptDice) ->
     case call(Pid, {roll, KeptDice}) of
         ok ->
-            dice_report(Pid);
-        {cheat, rolls_exceeded} ->
+            dice(Pid);
+        finished ->
             io:format("Maximum rolls of ~p exceeded~n", [?MAX_ROLLS]),
-            dice_report(Pid);
-        {cheat, dice_mismatch} ->
+            dice(Pid);
+        invalid_keepers ->
             io:format("~p were not part of your current hand.~n", [KeptDice]),
-            dice_report(Pid)
+            dice(Pid)
     end.
 
--spec stop(pid()) -> list().
+-spec stop(Pid :: pid()) -> list().
 stop(Pid) ->
     call(Pid, stop).
 
--spec generate_dice(integer()) -> list().
+-spec generate_dice(Num :: integer()) -> list().
 generate_dice(Num) ->
     generate_dice(Num, []).
 generate_dice(0, Acc) ->
@@ -52,15 +53,11 @@ generate_dice(0, Acc) ->
 generate_dice(Count, Acc) ->
     generate_dice(Count - 1, [rand:uniform(6) | Acc]).
 
--spec is_subset(list(), list()) -> boolean().
+-spec is_subset(Sub :: list(), Full :: list()) -> boolean().
 is_subset(Sub, Full) ->
         Sub -- Full =:= [].
 
--spec rolls_remaining(integer()) -> integer().
-rolls_remaining(RollNum) ->
-    ?MAX_ROLLS - RollNum.
-
--spec refill_dice(list()) -> list().
+-spec refill_dice(KeptDice :: list()) -> list().
 refill_dice(KeptDice) ->
     KeptDice ++ generate_dice(?NUM_DICE - length(KeptDice)).
 
@@ -72,6 +69,8 @@ turn_roll(KeptDice, RollNum) when length(KeptDice) < ?NUM_DICE ->
     DiceList = refill_dice(KeptDice),
     io:format("Dice roll, ~p~n", [DiceList]),
     turn_roll(DiceList, RollNum);
+turn_roll(DiceList, ?MAX_ROLLS)->
+    final_roll(DiceList);
 turn_roll(DiceList, RollNum) ->
     receive
         {From, dice} ->
@@ -80,33 +79,23 @@ turn_roll(DiceList, RollNum) ->
         {From, {roll, KeptDice}} ->
             case is_subset(KeptDice, DiceList) of
                 false ->
-                    From ! {cheat, dice_mismatch},
+                    From ! invalid_keepers,
                     turn_roll(DiceList, RollNum);
                 true ->
-                    case rolls_remaining(RollNum) > 1 of
-                        true ->
-                            From ! ok,
-                            turn_roll(DiceList, RollNum + 1);
-                        false ->
-                            From ! ok,
-                            final_roll(KeptDice)
-                    end
+                    From ! ok,
+                    turn_roll(KeptDice, RollNum + 1)
             end;
         {From, stop} ->
             From ! DiceList
     end.
 
-final_roll(KeptDice) when length(KeptDice) < 5 ->
-    DiceList = refill_dice(KeptDice),
-    io:format("Dice roll, ~p~n", [DiceList]),
-    final_roll(DiceList);
 final_roll(DiceList) ->
     receive
         {From, dice} ->
             From ! DiceList,
             final_roll(DiceList);
         {From, {roll, _}} ->
-            From ! {cheat, rolls_exceeded},
+            From ! finished,
             final_roll(DiceList);
         {From, stop} ->
             From ! DiceList
